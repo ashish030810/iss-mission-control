@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISS Mission Control</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="hud">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◎</span>
+      <div class="brand-text">
+        <h1>ISS MISSION CONTROL</h1>
+        <span class="brand-sub">Real-time orbital tracking</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="tracker">Tracker</button>
+        <button class="tab-btn" data-tab="about">About the ISS</button>
+      </nav>
+      <div class="clock" id="clock">--:--:--<span class="clock-zone">UTC</span></div>
+      <div class="live-pill" id="live-pill">
+        <span class="live-dot"></span>LIVE
+      </div>
+    </div>
+  </header>
+
+  <!-- Main: Tracker -->
+  <main class="main" id="view-tracker">
+
+    <section class="map-panel">
+      <div id="map"></div>
+      <div class="map-corner tl"></div>
+      <div class="map-corner tr"></div>
+      <div class="map-corner bl"></div>
+      <div class="map-corner br"></div>
+      <div class="map-label">TRACK 25544 &middot; DASHED = FLIGHT PATH SINCE SESSION START</div>
+      <button class="follow-btn" id="follow-btn">⌖ Follow ISS</button>
+    </section>
+
+    <aside class="telemetry">
+
+      <div class="tele-card" id="card-coords">
+        <span class="tele-label">Position</span>
+        <div class="tele-row">
+          <span class="tele-tag">LAT</span>
+          <span class="tele-value" id="val-lat">—</span>
+        </div>
+        <div class="tele-row">
+          <span class="tele-tag">LON</span>
+          <span class="tele-value" id="val-lon">—</span>
+        </div>
+      </div>
+
+      <div class="tele-card">
+        <span class="tele-label">Altitude</span>
+        <div class="tele-big" id="val-alt">—</div>
+        <span class="tele-unit">kilometers</span>
+      </div>
+
+      <div class="tele-card">
+        <span class="tele-label">Velocity</span>
+        <div class="tele-big" id="val-speed">—</div>
+        <span class="tele-unit">km/h</span>
+      </div>
+
+      <div class="tele-card">
+        <span class="tele-label">Distance travelled this session</span>
+        <div class="tele-big" id="val-distance">0</div>
+        <span class="tele-unit">kilometers</span>
+      </div>
+
+      <div class="tele-card">
+        <span class="tele-label">Crew currently in orbit</span>
+        <div class="tele-big" id="val-crew">—</div>
+        <span class="tele-unit" id="crew-craft">astronauts</span>
+      </div>
+
+      <button class="refresh-btn" id="refresh-btn">
+        <span class="refresh-icon">↻</span> Refresh now
+      </button>
+
+      <div class="status-line" id="status-line">Connecting to tracking network&hellip;</div>
+
+    </aside>
+
+  </main>
+
+  <!-- Main: About (NASA-only facts) -->
+  <section class="main about-view" id="view-about" hidden>
+    <div class="about-scroll">
+
+      <article class="about-card hero-card">
+        <span class="eyebrow">NASA · International Space Station</span>
+        <h2>A research outpost in low Earth orbit</h2>
+        <p>NASA leads the U.S. segment of the ISS, a science laboratory that has circled the planet continuously since November 2000. Assembly began in 1998 with the launch of the station's first module, and it has grown into the largest human-built structure ever flown in space.</p>
+      </article>
+
+      <div class="about-grid">
+        <div class="stat-card">
+          <span class="stat-label">Altitude</span>
+          <span class="stat-value" id="about-alt">~408</span>
+          <span class="stat-unit">km above Earth</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Orbital speed</span>
+          <span class="stat-value" id="about-speed">~27,600</span>
+          <span class="stat-unit">km/h</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Orbits per day</span>
+          <span class="stat-value">~16</span>
+          <span class="stat-unit">90 min each</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Crew aboard now</span>
+          <span class="stat-value" id="about-crew">—</span>
+          <span class="stat-unit">astronauts</span>
+        </div>
+      </div>
+
+      <article class="about-card">
+        <h3>NASA's segment</h3>
+        <p>NASA operates the Destiny laboratory module, the Unity and Harmony connecting nodes, the Quest airlock used for U.S. spacewalks, and the Cupola observation dome. Mission Control in Houston runs U.S. operations around the clock and handles the station's public video downlink.</p>
+      </article>
+
+      <article class="about-card">
+        <h3>Getting crew and cargo up there</h3>
+        <p>Since 2020, NASA's Commercial Crew Program has flown astronauts aboard SpaceX's Crew Dragon, restoring the ability to launch people to orbit from U.S. soil. Boeing's CST-100 Starliner is being developed as a second Commercial Crew vehicle. Cargo resupply runs through NASA-contracted vehicles including SpaceX's Dragon and Northrop Grumman's Cygnus.</p>
+      </article>
+
+      <article class="about-card">
+        <h3>Who's on board right now</h3>
+        <p id="about-crew-list">Loading current crew roster…</p>
+      </article>
+
+      <article class="about-card">
+        <h3>Common questions</h3>
+        <div class="faq-item">
+          <h4>Why does the camera feed sometimes go black?</h4>
+          <p>On the night side of each orbit there isn't enough sunlight for the external cameras to show much. Since the station completes an orbit roughly every 90 minutes, daylight returns quickly.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Can I see the ISS from where I live?</h4>
+          <p>Yes — under the right conditions it's visible to the naked eye as a fast, steady point of light, no telescope needed. NASA's own tool for this is called <em>Spot The Station</em>, available at spotthestation.nasa.gov.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How is the station kept at its altitude?</h4>
+          <p>Atmospheric drag slowly pulls the ISS lower, so visiting cargo spacecraft periodically fire their engines to boost it back up.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="script.js"></script>
+</body>
+</html>

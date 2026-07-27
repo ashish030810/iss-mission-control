@@ -15,158 +15,226 @@
 </head>
 <body>
 
-<div class="hud">
-
-  <!-- Top bar -->
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark">◎</span>
-      <div class="brand-text">
-        <h1>ISS MISSION CONTROL</h1>
-        <span class="brand-sub">Real-time orbital tracking</span>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <nav class="tabs">
-        <button class="tab-btn active" data-tab="tracker">Tracker</button>
-        <button class="tab-btn" data-tab="about">About the ISS</button>
-      </nav>
-      <div class="clock" id="clock">--:--:--<span class="clock-zone">UTC</span></div>
-      <div class="live-pill" id="live-pill">
-        <span class="live-dot"></span>LIVE
-      </div>
-    </div>
-  </header>
-
-  <!-- Main: Tracker -->
-  <main class="main" id="view-tracker">
-
-    <section class="map-panel">
-      <div id="map"></div>
-      <div class="map-corner tl"></div>
-      <div class="map-corner tr"></div>
-      <div class="map-corner bl"></div>
-      <div class="map-corner br"></div>
-      <div class="map-label">TRACK 25544 &middot; DASHED = FLIGHT PATH SINCE SESSION START</div>
-      <button class="follow-btn" id="follow-btn">⌖ Follow ISS</button>
-    </section>
-
-    <aside class="telemetry">
-
-      <div class="tele-card" id="card-coords">
-        <span class="tele-label">Position</span>
-        <div class="tele-row">
-          <span class="tele-tag">LAT</span>
-          <span class="tele-value" id="val-lat">—</span>
-        </div>
-        <div class="tele-row">
-          <span class="tele-tag">LON</span>
-          <span class="tele-value" id="val-lon">—</span>
-        </div>
-      </div>
-
-      <div class="tele-card">
-        <span class="tele-label">Altitude</span>
-        <div class="tele-big" id="val-alt">—</div>
-        <span class="tele-unit">kilometers</span>
-      </div>
-
-      <div class="tele-card">
-        <span class="tele-label">Velocity</span>
-        <div class="tele-big" id="val-speed">—</div>
-        <span class="tele-unit">km/h</span>
-      </div>
-
-      <div class="tele-card">
-        <span class="tele-label">Distance travelled this session</span>
-        <div class="tele-big" id="val-distance">0</div>
-        <span class="tele-unit">kilometers</span>
-      </div>
-
-      <div class="tele-card">
-        <span class="tele-label">Crew currently in orbit</span>
-        <div class="tele-big" id="val-crew">—</div>
-        <span class="tele-unit" id="crew-craft">astronauts</span>
-      </div>
-
-      <button class="refresh-btn" id="refresh-btn">
-        <span class="refresh-icon">↻</span> Refresh now
-      </button>
-
-      <div class="status-line" id="status-line">Connecting to tracking network&hellip;</div>
-
-    </aside>
-
-  </main>
-
-  <!-- Main: About (NASA-only facts) -->
-  <section class="main about-view" id="view-about" hidden>
-    <div class="about-scroll">
-
-      <article class="about-card hero-card">
-        <span class="eyebrow">NASA · International Space Station</span>
-        <h2>A research outpost in low Earth orbit</h2>
-        <p>NASA leads the U.S. segment of the ISS, a science laboratory that has circled the planet continuously since November 2000. Assembly began in 1998 with the launch of the station's first module, and it has grown into the largest human-built structure ever flown in space.</p>
-      </article>
-
-      <div class="about-grid">
-        <div class="stat-card">
-          <span class="stat-label">Altitude</span>
-          <span class="stat-value" id="about-alt">~408</span>
-          <span class="stat-unit">km above Earth</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Orbital speed</span>
-          <span class="stat-value" id="about-speed">~27,600</span>
-          <span class="stat-unit">km/h</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Orbits per day</span>
-          <span class="stat-value">~16</span>
-          <span class="stat-unit">90 min each</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Crew aboard now</span>
-          <span class="stat-value" id="about-crew">—</span>
-          <span class="stat-unit">astronauts</span>
-        </div>
-      </div>
-
-      <article class="about-card">
-        <h3>NASA's segment</h3>
-        <p>NASA operates the Destiny laboratory module, the Unity and Harmony connecting nodes, the Quest airlock used for U.S. spacewalks, and the Cupola observation dome. Mission Control in Houston runs U.S. operations around the clock and handles the station's public video downlink.</p>
-      </article>
-
-      <article class="about-card">
-        <h3>Getting crew and cargo up there</h3>
-        <p>Since 2020, NASA's Commercial Crew Program has flown astronauts aboard SpaceX's Crew Dragon, restoring the ability to launch people to orbit from U.S. soil. Boeing's CST-100 Starliner is being developed as a second Commercial Crew vehicle. Cargo resupply runs through NASA-contracted vehicles including SpaceX's Dragon and Northrop Grumman's Cygnus.</p>
-      </article>
-
-      <article class="about-card">
-        <h3>Who's on board right now</h3>
-        <p id="about-crew-list">Loading current crew roster…</p>
-      </article>
-
-      <article class="about-card">
-        <h3>Common questions</h3>
-        <div class="faq-item">
-          <h4>Why does the camera feed sometimes go black?</h4>
-          <p>On the night side of each orbit there isn't enough sunlight for the external cameras to show much. Since the station completes an orbit roughly every 90 minutes, daylight returns quickly.</p>
-        </div>
-        <div class="faq-item">
-          <h4>Can I see the ISS from where I live?</h4>
-          <p>Yes — under the right conditions it's visible to the naked eye as a fast, steady point of light, no telescope needed. NASA's own tool for this is called <em>Spot The Station</em>, available at spotthestation.nasa.gov.</p>
-        </div>
-        <div class="faq-item">
-          <h4>How is the station kept at its altitude?</h4>
-          <p>Atmospheric drag slowly pulls the ISS lower, so visiting cargo spacecraft periodically fire their engines to boost it back up.</p>
-        </div>
-      </article>
-
-    </div>
-  </section>
-
+<!-- DESKTOP BACKGROUND -->
+<div id="desktop-bg">
+  <div class="desktop-grid"></div>
 </div>
+
+<!-- MAIN WINDOW - Like a WebOS app -->
+<div id="main-window">
+  
+  <!-- Window Title Bar -->
+  <div class="window-titlebar">
+    <div class="window-title">
+      <span class="window-icon">🛰️</span>
+      ISS Mission Control
+      <span class="status-badge" id="status-badge">● LIVE</span>
+    </div>
+    <div class="window-controls">
+      <button class="win-btn minimize" onclick="minimizeWindow()">─</button>
+      <button class="win-btn maximize" onclick="maximizeWindow()">☐</button>
+      <button class="win-btn close" onclick="closeWindow()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Content -->
+  <div class="window-body">
+    
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-icon">🛰️</span>
+        <span class="sidebar-title">MISSION CONTROL</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-tab="tracker">
+          <span>🛰️</span> Tracker
+        </button>
+        <button class="nav-btn" data-tab="live">
+          <span>📡</span> Live View
+        </button>
+        <button class="nav-btn" data-tab="telecast">
+          <span>📺</span> Telecast
+        </button>
+        <button class="nav-btn" data-tab="about">
+          <span>ℹ️</span> About
+        </button>
+        <button class="nav-btn" data-tab="crew">
+          <span>👨‍🚀</span> Crew
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="live-indicator">
+          <span class="live-dot"></span> LIVE
+        </div>
+        <div class="sidebar-clock" id="sidebar-clock">--:--:--</div>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+      
+      <!-- TRACKER VIEW -->
+      <div class="view active" id="view-tracker">
+        <div class="view-header">
+          <h2>🛰️ ISS Tracker</h2>
+          <span class="view-sub">Real-time position tracking</span>
+        </div>
+        <div class="tracker-grid">
+          <div class="map-container">
+            <div id="map"></div>
+          </div>
+          <div class="telemetry-panel">
+            <div class="tele-grid">
+              <div class="tele-item">
+                <span class="tele-label">Latitude</span>
+                <span class="tele-value" id="val-lat">—</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Longitude</span>
+                <span class="tele-value" id="val-lon">—</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Altitude</span>
+                <span class="tele-value" id="val-alt">—</span>
+                <span class="tele-unit">km</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Velocity</span>
+                <span class="tele-value" id="val-speed">—</span>
+                <span class="tele-unit">km/h</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Distance</span>
+                <span class="tele-value" id="val-distance">0</span>
+                <span class="tele-unit">km</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Crew</span>
+                <span class="tele-value" id="astronaut-count">—</span>
+              </div>
+            </div>
+            <div class="astronaut-list" id="astronaut-list"></div>
+            <div class="tracker-footer">Auto-updates every 2s • Path trail shows last 150 positions</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE VIEW -->
+      <div class="view" id="view-live">
+        <div class="view-header">
+          <h2>📡 Live View</h2>
+          <span class="view-sub">Real-time telemetry dashboard</span>
+        </div>
+        <div class="live-grid">
+          <div class="live-stat">
+            <span class="live-stat-num" id="live-lat">—</span>
+            <span class="live-stat-label">Latitude</span>
+          </div>
+          <div class="live-stat">
+            <span class="live-stat-num" id="live-lng">—</span>
+            <span class="live-stat-label">Longitude</span>
+          </div>
+          <div class="live-stat">
+            <span class="live-stat-num" id="live-alt">—</span>
+            <span class="live-stat-label">Altitude</span>
+          </div>
+          <div class="live-stat">
+            <span class="live-stat-num" id="live-speed">—</span>
+            <span class="live-stat-label">Velocity</span>
+          </div>
+        </div>
+        <div class="live-feed-box">
+          <span class="live-dot"></span> Real-time telemetry feed
+          <small>Data via wheretheiss.at & open-notify.org</small>
+        </div>
+        <div class="live-info">
+          🛰️ ISS orbits at ~7.66 km/s • One orbit every ~90 minutes
+        </div>
+      </div>
+
+      <!-- TELECAST VIEW -->
+      <div class="view" id="view-telecast">
+        <div class="view-header">
+          <h2>📺 Live Telecast</h2>
+          <span class="view-sub">NASA & SpaceX live streams</span>
+        </div>
+        <div class="telecast-container">
+          <div class="telecast-player">
+            <iframe id="telecast-iframe" src="https://www.youtube.com/embed/21X5lGlDOfg?autoplay=1&rel=0" allowfullscreen></iframe>
+          </div>
+          <div class="telecast-controls">
+            <button class="telecast-btn active" data-stream="nasa" onclick="switchTelecast('nasa')">📡 NASA TV</button>
+            <button class="telecast-btn" data-stream="spacex" onclick="switchTelecast('spacex')">🚀 SpaceX</button>
+            <button class="telecast-btn" data-stream="iss" onclick="switchTelecast('iss')">🛰️ ISS Feed</button>
+          </div>
+          <div class="telecast-info-grid">
+            <div class="telecast-info-item">
+              <span class="telecast-info-label">Latitude</span>
+              <span class="telecast-info-value" id="tele-lat">—</span>
+            </div>
+            <div class="telecast-info-item">
+              <span class="telecast-info-label">Longitude</span>
+              <span class="telecast-info-value" id="tele-lon">—</span>
+            </div>
+            <div class="telecast-info-item">
+              <span class="telecast-info-label">Altitude</span>
+              <span class="telecast-info-value" id="tele-alt">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABOUT VIEW -->
+      <div class="view" id="view-about">
+        <div class="view-header">
+          <h2>ℹ️ About</h2>
+          <span class="view-sub">Mission information</span>
+        </div>
+        <div class="about-content">
+          <h2>🛰️ ISS Mission Control</h2>
+          <div class="about-subtitle">WebOS 1 • Hack Club Stardance</div>
+          <p>Real-time International Space Station tracker with live telemetry, astronaut tracking, and video streams.</p>
+          <ul class="feature-list">
+            <li>Live position on interactive map</li>
+            <li>Real-time altitude & velocity</li>
+            <li>Distance travelled tracking</li>
+            <li>Current astronaut roster</li>
+            <li>Live telecast from NASA/SpaceX</li>
+            <li>Dark HUD aesthetic</li>
+          </ul>
+          <div class="tech-tags">
+            <span class="tech-tag">Leaflet.js</span>
+            <span class="tech-tag">Open Notify</span>
+            <span class="tech-tag">wheretheiss.at</span>
+            <span class="tech-tag">YouTube Embed</span>
+            <span class="tech-tag">WebOS Desktop</span>
+          </div>
+          <div class="about-footer">Built for Hack Club Stardance • <span id="about-date"></span></div>
+        </div>
+      </div>
+
+          <!-- CREW VIEW -->
+      <div class="view" id="view-crew">
+        <div class="view-header">
+          <h2>👨‍🚀 Crew Roster</h2>
+          <span class="view-sub">Astronauts currently in orbit</span>
+        </div>
+        <div class="crew-container">
+          <div class="crew-count-display">
+            <span class="crew-emoji">👨‍🚀</span>
+            <span class="crew-number" id="crew-count">—</span>
+            <span class="crew-label">astronauts in orbit</span>
+          </div>
+          <div id="crew-roster" class="crew-roster">
+            <!-- Astronaut list will be populated here -->
+            <div class="crew-loading">Loading crew data...</div>
+          </div>
+          <div class="crew-footer">Updated every 60 seconds • Data from Open Notify API</div>
+        </div>
+      </div>
+<!-- SHORTCUT HINT -->
+<div class="shortcut-hint">Ctrl+1 · 2 · 3 · 4 · 5 &nbsp;—&nbsp; switch views</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="script.js"></script>

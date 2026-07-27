@@ -1,6 +1,5 @@
 /* ======================================================
-   ISS MISSION CONTROL
-   Live position, path trail, distance, speed, crew count
+   ISS MISSION CONTROL - Single Window WebOS App
    ====================================================== */
 
 const UPDATE_INTERVAL_MS = 2000;
@@ -9,32 +8,117 @@ const EARTH_RADIUS_KM = 6371;
 
 let map, issMarker, pathLine, pathCoords = [];
 let totalDistanceKm = 0;
-let lastFix = null; // { lat, lon, t } of previous successful update
-let staleTicks = 0;
+let lastFix = null;
 let animFrameId = null;
 let followMap = true;
 
-/* ---------- Map setup ---------- */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NAVIGATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const view = document.getElementById(`view-${viewId}`);
+  if (view) view.classList.add('active');
+  
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === viewId);
+  });
+  
+  if (viewId === 'tracker' && map) {
+    setTimeout(() => map.invalidateSize(), 100);
+  }
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchView(btn.dataset.tab);
+  });
+});
+
+document.addEventListener('keydown', (e) => {
+  const views = ['tracker', 'live', 'telecast', 'about', 'crew'];
+  views.forEach((view, i) => {
+    if (e.ctrlKey && e.key === String(i + 1)) {
+      e.preventDefault();
+      switchView(view);
+    }
+  });
+});
+
+// ── Window controls ──
+function minimizeWindow() {
+  const win = document.getElementById('main-window');
+  win.style.transform = 'translate(-50%, -50%) scale(0.95)';
+  win.style.opacity = '0';
+  setTimeout(() => {
+    win.style.display = 'none';
+    win.style.transform = 'translate(-50%, -50%) scale(1)';
+    win.style.opacity = '1';
+  }, 200);
+}
+
+function maximizeWindow() {
+  const win = document.getElementById('main-window');
+  const isMaximized = win.dataset.maximized === 'true';
+  if (isMaximized) {
+    win.style.width = '92vw';
+    win.style.height = '88vh';
+    win.style.maxWidth = '1200px';
+    win.style.maxHeight = '800px';
+    win.style.borderRadius = '14px';
+    win.dataset.maximized = 'false';
+  } else {
+    win.style.width = '100vw';
+    win.style.height = '100vh';
+    win.style.maxWidth = 'none';
+    win.style.maxHeight = 'none';
+    win.style.borderRadius = '0';
+    win.dataset.maximized = 'true';
+  }
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 200);
+}
+
+function closeWindow() {
+  const win = document.getElementById('main-window');
+  win.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  win.style.opacity = '0';
+  setTimeout(() => {
+    win.style.display = 'none';
+  }, 300);
+}
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  document.getElementById('sidebar-clock').textContent = time;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ISS TRACKER LOGIC
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 function initMap() {
   map = L.map('map', {
     worldCopyJump: true,
     zoomControl: true,
     attributionControl: true,
-  }).setView([20, 0], 4);
+  }).setView([20, 0], 3);
 
-  // If the person manually drags/zooms, stop auto-following so we don't fight them
-  map.on('dragstart zoomstart', (e) => {
-    if (e.originalEvent) {
-      followMap = false;
-      const btn = document.getElementById('follow-btn');
-      if (btn) {
-        btn.classList.add('off');
-        btn.textContent = '⌖ Follow ISS';
-      }
-    }
+  map.on('dragstart zoomstart', () => {
+    followMap = false;
   });
 
-  // Dark, label-free tiles
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap, &copy; CARTO',
     subdomains: 'abcd',
@@ -44,30 +128,25 @@ function initMap() {
   const icon = L.divIcon({
     className: '',
     html: '<div class="iss-marker"><div class="ring"></div><div class="dot"></div></div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   });
 
   issMarker = L.marker([0, 0], { icon }).addTo(map);
-
   pathLine = L.polyline([], {
     color: '#4fd8e8',
     weight: 2,
-    opacity: 0.8,
+    opacity: 0.6,
     dashArray: '6, 8',
   }).addTo(map);
 }
 
-/* ---------- Helpers ---------- */
 function haversineKm(lat1, lon1, lat2, lon2) {
   const toRad = deg => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return EARTH_RADIUS_KM * c;
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function fmt(num, decimals = 2) {
@@ -78,62 +157,36 @@ function fmt(num, decimals = 2) {
   });
 }
 
-function setStatus(msg) {
-  document.getElementById('status-line').textContent = msg;
-}
-
-// Smoothly glide the marker (and optionally the map view) from one fix to the
-// next over `duration` ms, instead of jumping straight to the new point.
 function animateMarkerTo(fromLat, fromLon, toLat, toLon, duration) {
   if (animFrameId) cancelAnimationFrame(animFrameId);
-
-  // Handle the antimeridian (±180°) so the marker doesn't fly across the whole map
   let adjToLon = toLon;
   const lonDiff = toLon - fromLon;
   if (lonDiff > 180) adjToLon -= 360;
   if (lonDiff < -180) adjToLon += 360;
-
   const start = performance.now();
 
   function step(now) {
     const t = Math.min((now - start) / duration, 1);
     const lat = fromLat + (toLat - fromLat) * t;
     const lon = fromLon + (adjToLon - fromLon) * t;
-
     issMarker.setLatLng([lat, lon]);
     if (followMap) map.panTo([lat, lon], { animate: false });
-
-    if (t < 1) {
-      animFrameId = requestAnimationFrame(step);
-    }
+    if (t < 1) animFrameId = requestAnimationFrame(step);
   }
-
   animFrameId = requestAnimationFrame(step);
 }
 
 function setLiveState(isLive) {
-  const pill = document.getElementById('live-pill');
-  pill.classList.toggle('stale', !isLive);
-  pill.innerHTML = isLive
-    ? '<span class="live-dot"></span>LIVE'
-    : '<span class="live-dot"></span>RETRYING';
+  const badge = document.getElementById('status-badge');
+  if (badge) {
+    badge.textContent = isLive ? '● LIVE' : '● OFFLINE';
+    badge.className = 'status-badge' + (isLive ? '' : ' offline');
+  }
 }
 
-/* ---------- Clock ---------- */
-function tickClock() {
-  const now = new Date();
-  const hh = String(now.getUTCHours()).padStart(2, '0');
-  const mm = String(now.getUTCMinutes()).padStart(2, '0');
-  const ss = String(now.getUTCSeconds()).padStart(2, '0');
-  document.getElementById('clock').innerHTML =
-    `${hh}:${mm}:${ss}<span class="clock-zone">UTC</span>`;
-}
-
-/* ---------- Position fetchers (with fallback chain) ---------- */
-// Primary: wheretheiss.at — https, CORS-enabled, gives lat/lon/altitude/velocity directly
 async function fetchFromWhereTheISS() {
   const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
-  if (!res.ok) throw new Error('wheretheiss.at bad status');
+  if (!res.ok) throw new Error('wheretheiss.at error');
   const d = await res.json();
   return {
     lat: parseFloat(d.latitude),
@@ -144,10 +197,9 @@ async function fetchFromWhereTheISS() {
   };
 }
 
-// Fallback: open-notify — lat/lon only, no altitude/velocity
 async function fetchFromOpenNotify() {
   const res = await fetch('https://api.open-notify.org/iss-now.json');
-  if (!res.ok) throw new Error('open-notify bad status');
+  if (!res.ok) throw new Error('open-notify error');
   const d = await res.json();
   return {
     lat: parseFloat(d.iss_position.latitude),
@@ -159,166 +211,186 @@ async function fetchFromOpenNotify() {
 }
 
 async function fetchIssPosition() {
-  const attempts = [fetchFromWhereTheISS, fetchFromOpenNotify];
-  let lastErr = null;
-  for (const attempt of attempts) {
-    try {
-      return await attempt();
-    } catch (err) {
-      lastErr = err;
-    }
+  try {
+    return await fetchFromWhereTheISS();
+  } catch {
+    return await fetchFromOpenNotify();
   }
-  throw lastErr || new Error('All position sources failed');
 }
 
-/* ---------- Astronaut count ---------- */
 async function fetchAstronauts() {
   try {
     const res = await fetch('https://api.open-notify.org/astros.json');
-    if (!res.ok) throw new Error('astros bad status');
+    if (!res.ok) throw new Error('astros error');
     const d = await res.json();
-    document.getElementById('val-crew').textContent = d.number ?? '—';
-    const craftCounts = {};
-    (d.people || []).forEach(p => {
-      craftCounts[p.craft] = (craftCounts[p.craft] || 0) + 1;
-    });
-    const summary = Object.entries(craftCounts)
-      .map(([craft, n]) => `${n} on ${craft}`)
-      .join(' · ');
-    document.getElementById('crew-craft').textContent = summary || 'astronauts';
+    const count = d.number || 0;
+    const people = d.people || [];
 
-    // About tab: crew count + plain-text roster
-    document.getElementById('about-crew').textContent = d.number ?? '—';
-    const listEl = document.getElementById('about-crew-list');
-    if (d.people && d.people.length) {
-      const names = d.people
-        .map(p => `<span class="crew-name">${p.name}</span> (${p.craft})`)
-        .join(', ');
-      listEl.innerHTML = `${d.number} people are currently in orbit: ${names}.`;
-    } else {
-      listEl.textContent = 'Crew roster unavailable right now.';
+    // Update tracker window - astronaut count
+    const countEl = document.getElementById('astronaut-count');
+    if (countEl) countEl.textContent = count;
+    
+    // Update tracker window - astronaut list (names only)
+    const list = document.getElementById('astronaut-list');
+    if (list) {
+      if (people.length > 0) {
+        list.innerHTML = people.map(p =>
+          `<span class="astronaut-badge">👨‍🚀 ${p.name}</span>`
+        ).join('');
+      } else {
+        list.innerHTML = '<span class="astronaut-badge" style="color:var(--text-faint);">No data available</span>';
+      }
     }
+
+    // Update crew window - detailed roster with craft
+    const crewCount = document.getElementById('crew-count');
+    if (crewCount) crewCount.textContent = count;
+    
+    const crewList = document.getElementById('crew-roster');
+    if (crewList) {
+      if (people.length > 0) {
+        // Get craft color class
+        const getCraftClass = (craft) => {
+          const craftLower = craft.toLowerCase();
+          if (craftLower.includes('iss')) return 'iss';
+          if (craftLower.includes('spacex') || craftLower.includes('dragon')) return 'spacex';
+          if (craftLower.includes('soyuz')) return 'soyuz';
+          if (craftLower.includes('boeing') || craftLower.includes('starliner')) return 'boeing';
+          return 'default';
+        };
+
+        crewList.innerHTML = people.map(p => {
+          const craftClass = getCraftClass(p.craft);
+          return `
+            <div class="crew-entry">
+              <span class="crew-name">
+                <span class="crew-emoji-small">👨‍🚀</span>
+                ${p.name}
+              </span>
+              <span class="crew-craft-badge ${craftClass}">${p.craft}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        crewList.innerHTML = `
+          <div class="crew-empty">
+            <span style="font-size:32px;display:block;margin-bottom:8px;">🚀</span>
+            No astronauts currently in orbit
+          </div>
+        `;
+      }
+    }
+
+    return d;
   } catch (err) {
-    // keep last known value silently
+    console.error('Failed to fetch astronauts:', err);
+    
+    const crewList = document.getElementById('crew-roster');
+    if (crewList) {
+      crewList.innerHTML = `
+        <div class="crew-empty">
+          <span style="font-size:32px;display:block;margin-bottom:8px;">⚠️</span>
+          Failed to load crew data<br>
+          <span style="font-size:11px;color:var(--text-faint);">Retrying in 60 seconds...</span>
+        </div>
+      `;
+    }
+    return null;
   }
 }
 
-/* ---------- Main update loop ---------- */
 async function updatePosition() {
   try {
     const fix = await fetchIssPosition();
-    staleTicks = 0;
     setLiveState(true);
-    setStatus('Tracking feed nominal.');
 
-    // Glide smoothly from the last known point to the new one, rather than
-    // snapping — this is what makes the motion visible and continuous.
     if (lastFix) {
       animateMarkerTo(lastFix.lat, lastFix.lon, fix.lat, fix.lon, UPDATE_INTERVAL_MS);
     } else {
       issMarker.setLatLng([fix.lat, fix.lon]);
-      map.setView([fix.lat, fix.lon], 4);
+      map.setView([fix.lat, fix.lon], 3);
     }
 
-    // Path trail
     pathCoords.push([fix.lat, fix.lon]);
+    if (pathCoords.length > 150) pathCoords.shift();
     pathLine.setLatLngs(pathCoords);
 
-    // Distance + speed from consecutive fixes
     let speedKmh = fix.velocityKmh;
     if (lastFix) {
       const segmentKm = haversineKm(lastFix.lat, lastFix.lon, fix.lat, fix.lon);
       totalDistanceKm += segmentKm;
-
-      if (speedKmh === null || speedKmh === undefined || Number.isNaN(speedKmh)) {
+      if (!speedKmh) {
         const hours = (fix.t - lastFix.t) / 3600000;
         if (hours > 0) speedKmh = segmentKm / hours;
       }
     }
     lastFix = fix;
 
-    // Render telemetry
     document.getElementById('val-lat').textContent = `${fmt(fix.lat, 4)}°`;
     document.getElementById('val-lon').textContent = `${fmt(fix.lon, 4)}°`;
-    document.getElementById('val-alt').textContent =
-      fix.altitudeKm !== null ? fmt(fix.altitudeKm, 1) : '~408.0';
-    document.getElementById('val-speed').textContent =
-      speedKmh !== undefined && speedKmh !== null ? fmt(speedKmh, 0) : '—';
+    document.getElementById('val-alt').textContent = fix.altitudeKm !== null ? fmt(fix.altitudeKm, 1) : '~408.0';
+    document.getElementById('val-speed').textContent = speedKmh ? fmt(speedKmh, 0) : '—';
     document.getElementById('val-distance').textContent = fmt(totalDistanceKm, 1);
 
-    // Mirror the live numbers into the About tab's stat cards
-    if (fix.altitudeKm !== null) {
-      document.getElementById('about-alt').textContent = `~${fmt(fix.altitudeKm, 0)}`;
-    }
-    if (speedKmh) {
-      document.getElementById('about-speed').textContent = fmt(speedKmh, 0);
-    }
+    document.getElementById('live-lat').textContent = `${fmt(fix.lat, 4)}°`;
+    document.getElementById('live-lng').textContent = `${fmt(fix.lon, 4)}°`;
+    document.getElementById('live-alt').textContent = fix.altitudeKm !== null ? fmt(fix.altitudeKm, 1) + ' km' : '~408 km';
+    document.getElementById('live-speed').textContent = speedKmh ? fmt(speedKmh, 0) + ' km/h' : '—';
+
+    document.getElementById('tele-lat').textContent = `${fmt(fix.lat, 4)}°`;
+    document.getElementById('tele-lon').textContent = `${fmt(fix.lon, 4)}°`;
+    document.getElementById('tele-alt').textContent = fix.altitudeKm !== null ? fmt(fix.altitudeKm, 1) + ' km' : '~408 km';
+
   } catch (err) {
-    staleTicks += 1;
     setLiveState(false);
-    setStatus('Signal lost — retrying tracking feed…');
   }
 }
 
-/* ---------- Refresh button ---------- */
-function wireRefreshButton() {
-  const btn = document.getElementById('refresh-btn');
-  btn.addEventListener('click', async () => {
-    btn.classList.add('spinning');
-    await Promise.all([updatePosition(), fetchAstronauts()]);
-    setTimeout(() => btn.classList.remove('spinning'), 400);
-  });
-}
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TELECAST
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/* ---------- Follow toggle ---------- */
-function wireFollowButton() {
-  const btn = document.getElementById('follow-btn');
-  const render = () => {
-    btn.classList.toggle('off', !followMap);
-    btn.textContent = followMap ? '⌖ Following' : '⌖ Follow ISS';
+function switchTelecast(source) {
+  const iframe = document.getElementById('telecast-iframe');
+  if (!iframe) return;
+  
+  const streams = {
+    nasa: 'https://www.youtube.com/embed/21X5lGlDOfg?autoplay=1&rel=0',
+    spacex: 'https://www.youtube.com/embed/21X5lGlDOfg?autoplay=1&rel=0',
+    iss: 'https://www.youtube.com/embed/21X5lGlDOfg?autoplay=1&rel=0'
   };
-  render();
-  btn.addEventListener('click', () => {
-    followMap = !followMap;
-    if (followMap && lastFix) map.panTo([lastFix.lat, lastFix.lon]);
-    render();
+  
+  iframe.src = streams[source] || streams.nasa;
+  
+  document.querySelectorAll('.telecast-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.stream === source);
   });
 }
 
-/* ---------- Tabs ---------- */
-function wireTabs() {
-  const buttons = document.querySelectorAll('.tab-btn');
-  const trackerView = document.getElementById('view-tracker');
-  const aboutView = document.getElementById('view-about');
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const showAbout = btn.dataset.tab === 'about';
-      trackerView.hidden = showAbout;
-      aboutView.hidden = !showAbout;
-      // Leaflet needs a nudge when its container was hidden and becomes visible again
-      if (!showAbout) setTimeout(() => map.invalidateSize(), 50);
-    });
+document.getElementById('about-date').textContent =
+  'Launched: ' + new Date().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
   });
-}
 
-/* ---------- Boot ---------- */
-function boot() {
+setTimeout(() => {
   initMap();
-  wireRefreshButton();
-  wireFollowButton();
-  wireTabs();
-  tickClock();
-  setInterval(tickClock, 1000);
+  setTimeout(() => map.invalidateSize(), 300);
+}, 300);
 
-  setStatus('Connecting to tracking network…');
-  updatePosition();
-  fetchAstronauts();
+updatePosition();
+fetchAstronauts();
+setInterval(updatePosition, UPDATE_INTERVAL_MS);
+setInterval(fetchAstronauts, ASTRO_REFRESH_MS);
 
-  setInterval(updatePosition, UPDATE_INTERVAL_MS);
-  setInterval(fetchAstronauts, ASTRO_REFRESH_MS);
-}
+window.switchTelecast = switchTelecast;
+window.switchView = switchView;
+window.minimizeWindow = minimizeWindow;
+window.maximizeWindow = maximizeWindow;
+window.closeWindow = closeWindow;
 
-document.addEventListener('DOMContentLoaded', boot);
+console.log('🛰️ ISS Mission Control loaded!');
+console.log('📋 Shortcuts: Ctrl+1 (Tracker), Ctrl+2 (Live), Ctrl+3 (Telecast), Ctrl+4 (About), Ctrl+5 (Crew)');
